@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import SoundSettings from "@/components/SoundSettings";
-import { playIssueSequence, playIssueComplete } from "@/lib/soundStore";
+import { playIssueSequence, playIssueComplete, playSelectAll } from "@/lib/soundStore";
 
 type Tab = "accept" | "issue" | "return" | "more";
 
@@ -192,6 +192,9 @@ export default function Index() {
       ...prev,
       [tab]: prev[tab].map(o => o.id === activeOrder.id ? updated : o),
     }));
+    if (!allChecked && tab === "issue") {
+      playSelectAll(activeOrder.goods.length);
+    }
   };
 
   const handleTabChange = (t: Tab) => {
@@ -342,8 +345,11 @@ function OrderScreen({ order, tab, onBack, onTabChange, onIssue, onGoodCheck, on
   const totalPrice = order.goods.reduce((s, g) => s + g.price, 0);
 
   useEffect(() => {
-    if (tab === "issue") playIssueSequence(order.items);
-  }, [order.id, order.items, tab]);
+    if (tab === "issue") {
+      const cellNum = parseInt(order.cell.replace(/\D/g, ""), 10) || 1;
+      playIssueSequence(cellNum, order.items);
+    }
+  }, [order.id, order.items, order.cell, tab]);
 
   return (
     <div className="flex flex-col h-screen bg-white max-w-md mx-auto overflow-hidden select-none">
