@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import Icon from "@/components/ui/icon";
-import SoundSettings from "@/components/SoundSettings";
 import BottomNav from "@/components/pvz/BottomNav";
 import OrderScreen from "@/components/pvz/OrderScreen";
 import MoreScreen from "@/components/pvz/MoreScreen";
 import { Tab, Screen, Order, MOCK_ORDERS, TAB_TITLES, TAB_SUBTITLES, SCAN_HINTS, playBeep } from "@/types/pvz";
 import { playIssueComplete, playSelectAll } from "@/lib/soundStore";
+
+const SoundSettings = lazy(() => import("@/components/SoundSettings"));
 
 export default function Index() {
   const [tab, setTab] = useState<Tab>("issue");
@@ -88,7 +89,11 @@ export default function Index() {
   const pendingCount = currentOrders.filter(o => o.status === "pending").length;
 
   if (screen === "soundSettings") {
-    return <SoundSettings onBack={() => setScreen("main")} />;
+    return (
+      <Suspense fallback={null}>
+        <SoundSettings onBack={() => setScreen("main")} />
+      </Suspense>
+    );
   }
 
   if (screen === "order" && activeOrder) {

@@ -63,6 +63,14 @@
     font-family: "Golos Text", sans-serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    /* Ускоряем отрисовку на мобильных */
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeSpeed;
+  }
+
+  /* Отключаем медленные transitions при первой загрузке */
+  .no-transition * {
+    transition: none !important;
   }
 }
 
