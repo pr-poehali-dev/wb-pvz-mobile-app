@@ -69,17 +69,36 @@ export const MOCK_ORDERS: Record<Tab, Order[]> = {
   issue: [
     {
       id: "4", barcode: "WB-9102847", customer: "Дмитрий В.", phone: "+7 (***) *** 24-03",
-      cell: 2, items: 2, status: "pending", time: "10:22", paymentOnDelivery: true,
+      cell: 47, items: 2, status: "pending", time: "10:22", paymentOnDelivery: true,
       goods: [
         { id: "g5", barcode: "12345678", name: "Кеды", brand: "Pepe Jeans", price: 7000, tags: ["НЕ ОПЛАЧЕН", "НЕВОЗВРАТНЫЙ"], checked: false },
-        { id: "g6", barcode: "12345678", name: "Носки (3 пары)", brand: "Calvin Klein", price: 1200, tags: [], checked: false },
+        { id: "g6", barcode: "12345679", name: "Носки (3 пары)", brand: "Calvin Klein", price: 1200, tags: [], checked: false },
       ],
     },
     {
       id: "5", barcode: "WB-5534901", customer: "Ольга Б.", phone: "+7 (***) *** 55-90",
-      cell: 3, items: 1, status: "done", time: "10:05",
+      cell: 113, items: 1, status: "pending", time: "10:05",
       goods: [
-        { id: "g7", barcode: "55544433", name: "Сумка кожаная", brand: "Guess", price: 12000, tags: [], checked: true },
+        { id: "g7", barcode: "55544433", name: "Сумка кожаная", brand: "Guess", price: 12000, tags: [], checked: false },
+      ],
+    },
+    {
+      id: "7", barcode: "WB-6612034", customer: "Сергей М.", phone: "+7 (***) *** 77-15",
+      cell: 8, items: 4, status: "pending", time: "09:45",
+      goods: [
+        { id: "g9",  barcode: "11223344", name: "Футболка белая", brand: "Uniqlo", price: 1500, tags: [], checked: false },
+        { id: "g10", barcode: "11223345", name: "Футболка чёрная", brand: "Uniqlo", price: 1500, tags: [], checked: false },
+        { id: "g11", barcode: "11223346", name: "Джинсы", brand: "Levi's", price: 6500, tags: ["НЕ ОПЛАЧЕН"], checked: false },
+        { id: "g12", barcode: "11223347", name: "Ремень кожаный", brand: "Zara", price: 2200, tags: [], checked: false },
+      ],
+    },
+    {
+      id: "8", barcode: "WB-7734501", customer: "Татьяна Л.", phone: "+7 (***) *** 33-88",
+      cell: 192, items: 3, status: "pending", time: "09:10",
+      goods: [
+        { id: "g13", barcode: "22334455", name: "Платье вечернее", brand: "Mango", price: 8900, tags: [], checked: false },
+        { id: "g14", barcode: "22334456", name: "Туфли", brand: "Ecco", price: 11500, tags: [], checked: false },
+        { id: "g15", barcode: "22334457", name: "Клатч", brand: "Guess", price: 3200, tags: ["НЕВОЗВРАТНЫЙ"], checked: false },
       ],
     },
   ],

@@ -38,9 +38,10 @@ export default function OrderScreen({
       <div className="px-5 pb-4 bg-white">
         <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-[42px] font-black text-gray-900 leading-none">{totalPrice.toLocaleString("ru-RU")}</span>
-              <span className="text-[22px] font-bold text-gray-400">{order.items} шт</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[42px] font-black text-gray-900 leading-none">{order.cell}</span>
+              <span className="text-[20px] font-bold text-gray-300">/</span>
+              <span className="text-[28px] font-black text-gray-500 leading-none">{order.items} шт</span>
             </div>
             <div className="text-[14px] text-gray-500 mt-1">{order.phone}</div>
           </div>
@@ -48,20 +49,6 @@ export default function OrderScreen({
             <Icon name="Volume2" size={20} className="text-[#7B00FF]" />
           </button>
         </div>
-      </div>
-
-      {/* Ячейка + payment badge */}
-      <div className="mx-5 mb-3 flex items-center gap-2">
-        <div className="flex-1 bg-[#F5F0FF] rounded-2xl px-4 py-2.5 flex items-center gap-2">
-          <Icon name="MapPin" size={15} className="text-[#7B00FF]" />
-          <span className="text-[13px] font-semibold text-[#7B00FF]">Ячейка {order.cell}</span>
-        </div>
-        {order.paymentOnDelivery && (
-          <div className="bg-orange-100 rounded-2xl px-3 py-2.5 flex items-center gap-1.5">
-            <Icon name="Banknote" size={14} className="text-orange-600" />
-            <span className="text-[12px] font-bold text-orange-600">Налич.</span>
-          </div>
-        )}
       </div>
 
       {/* Check row */}
