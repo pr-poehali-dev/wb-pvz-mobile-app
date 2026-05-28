@@ -16,6 +16,7 @@ import {
   removeCellSound,
   getSoundDataUrlByKey,
   cellKey,
+  saveCellSoundBulk,
 } from "@/lib/soundStore";
 
 interface Props {
@@ -26,7 +27,6 @@ type CellSection = "cells" | "main";
 
 export default function SoundSettings({ onBack }: Props) {
   const [section, setSection] = useState<CellSection>("main");
-
   return section === "cells"
     ? <CellSoundsScreen onBack={() => setSection("main")} />
     : <MainSoundsScreen onBack={onBack} onCells={() => setSection("cells")} />;
@@ -48,7 +48,7 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
-    setTimeout(() => setToast(null), 2200);
+    setTimeout(() => setToast(null), 2500);
   };
 
   const refresh = (key: SoundKey) => {
@@ -73,8 +73,7 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
   const handleRemove = (key: SoundKey) => {
     removeSound(key);
     refresh(key);
-    const ref = fileRefs.current[key];
-    if (ref) ref.value = "";
+    if (fileRefs.current[key]) fileRefs.current[key]!.value = "";
     showToast("Звук удалён", false);
   };
 
@@ -114,13 +113,13 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
           <Icon name="ArrowRight" size={12} className="text-gray-300" />
           <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Кол-во</span>
           <Icon name="ArrowRight" size={12} className="text-gray-300" />
-          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Проверьте</span>
+          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">Звук × N</span>
           <Icon name="ArrowRight" size={12} className="text-gray-300" />
-          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">Звук × товары</span>
+          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Проверьте</span>
           <Icon name="ArrowRight" size={12} className="text-gray-300" />
           <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg">Спасибо</span>
         </div>
-        <div className="text-[10px] text-gray-400 mt-2">Звук товара играет при нажатии «Выбрать все»</div>
+        <div className="text-[10px] text-gray-400 mt-2">«Звук × N» и «Проверьте» — при нажатии «Выбрать все»</div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-6">
@@ -143,13 +142,11 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
           <Icon name="ChevronRight" size={18} className="text-gray-400" />
         </button>
 
-        {/* Main sounds */}
         {SOUND_KEYS.map((key, i) => {
           const meta = SOUND_META[key];
           const uploaded = statuses[key];
           const name = names[key];
           const isLast = key === "thanks_for_order_rate_pickpoint";
-
           return (
             <div key={key}>
               {isLast && (
@@ -161,10 +158,8 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
               )}
               <div className="bg-white rounded-2xl p-4" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
                 <div className="flex items-start gap-3">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black flex-shrink-0 mt-0.5"
-                    style={{ background: uploaded ? "#7B00FF" : "#F0E6FF", color: uploaded ? "#fff" : "#7B00FF" }}
-                  >
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black flex-shrink-0 mt-0.5"
+                    style={{ background: uploaded ? "#7B00FF" : "#F0E6FF", color: uploaded ? "#fff" : "#7B00FF" }}>
                     {uploaded ? <Icon name="Check" size={13} /> : i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -179,12 +174,9 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => fileRefs.current[key]?.click()}
-                    disabled={loading === key}
+                  <button onClick={() => fileRefs.current[key]?.click()} disabled={loading === key}
                     className="flex-1 h-10 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                    style={{ background: uploaded ? "#F5F0FF" : "#7B00FF", color: uploaded ? "#7B00FF" : "#fff" }}
-                  >
+                    style={{ background: uploaded ? "#F5F0FF" : "#7B00FF", color: uploaded ? "#7B00FF" : "#fff" }}>
                     {loading === key ? <Icon name="Loader2" size={15} className="animate-spin" /> : <Icon name={uploaded ? "RefreshCw" : "Upload"} size={15} />}
                     {uploaded ? "Заменить" : "Загрузить"}
                   </button>
@@ -199,7 +191,8 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
                     </button>
                   )}
                 </div>
-                <input ref={(el) => { fileRefs.current[key] = el; }} type="file" accept="audio/*" className="hidden" onChange={(e) => handleFile(key, e.target.files?.[0])} />
+                <input ref={(el) => { fileRefs.current[key] = el; }} type="file" accept="audio/*" className="hidden"
+                  onChange={(e) => handleFile(key, e.target.files?.[0])} />
               </div>
             </div>
           );
@@ -226,14 +219,22 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
     () => Array.from({ length: CELL_COUNT }, (_, i) => getCellSoundName(i + 1))
   );
   const [loading, setLoading] = useState<number | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(0);
   const [playing, setPlaying] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [search, setSearch] = useState("");
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const bulkFileRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
-    setTimeout(() => setToast(null), 2200);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const refreshAll = () => {
+    setStatuses(Array.from({ length: CELL_COUNT }, (_, i) => hasCellSound(i + 1)));
+    setNames(Array.from({ length: CELL_COUNT }, (_, i) => getCellSoundName(i + 1)));
   };
 
   const refresh = (n: number) => {
@@ -241,6 +242,7 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
     setNames(p => { const next = [...p]; next[n - 1] = getCellSoundName(n); return next; });
   };
 
+  // Одиночная загрузка
   const handleFile = async (n: number, file: File | undefined) => {
     if (!file) return;
     setLoading(n);
@@ -255,11 +257,30 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
     }
   };
 
+  // Массовая загрузка: один файл на все ячейки
+  const handleBulkFile = async (file: File | undefined) => {
+    if (!file) return;
+    setBulkLoading(true);
+    setBulkProgress(0);
+    try {
+      await saveCellSoundBulk(1, CELL_COUNT, file, (done) => {
+        setBulkProgress(Math.round((done / CELL_COUNT) * 100));
+      });
+      refreshAll();
+      showToast(`Файл «${file.name}» применён ко всем ${CELL_COUNT} ячейкам`);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Ошибка", false);
+    } finally {
+      setBulkLoading(false);
+      setBulkProgress(0);
+      if (bulkFileRef.current) bulkFileRef.current.value = "";
+    }
+  };
+
   const handleRemove = (n: number) => {
     removeCellSound(n);
     refresh(n);
-    const ref = fileRefs.current[n];
-    if (ref) ref.value = "";
+    if (fileRefs.current[n]) fileRefs.current[n]!.value = "";
     showToast(`Ячейка ${n} удалена`, false);
   };
 
@@ -273,10 +294,9 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
     await audio.play().catch(() => setPlaying(null));
   };
 
-  const filteredNums = Array.from({ length: CELL_COUNT }, (_, i) => i + 1).filter(n => {
-    if (!search) return true;
-    return String(n).includes(search.trim());
-  });
+  const filteredNums = Array.from({ length: CELL_COUNT }, (_, i) => i + 1).filter(n =>
+    !search || String(n).includes(search.trim())
+  );
 
   const uploadedCount = statuses.filter(Boolean).length;
 
@@ -294,33 +314,60 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
+      {/* Bulk upload card */}
+      <div className="mx-4 mb-3 bg-white rounded-2xl p-4" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-[#F0E6FF] flex items-center justify-center flex-shrink-0">
+            <Icon name="Layers" size={20} className="text-[#7B00FF]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-bold text-gray-900">Один файл на все ячейки</div>
+            <div className="text-[11px] text-gray-400">Загрузите один аудиофайл — он применится к ячейкам 1–200</div>
+          </div>
+        </div>
+
+        {bulkLoading ? (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[12px] text-gray-500">Сохраняется...</span>
+              <span className="text-[12px] font-bold text-[#7B00FF]">{bulkProgress}%</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-[#7B00FF] rounded-full transition-all duration-100" style={{ width: `${bulkProgress}%` }} />
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => bulkFileRef.current?.click()}
+            className="w-full h-11 rounded-xl bg-[#7B00FF] text-white font-semibold text-[14px] flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <Icon name="Upload" size={16} />
+            Загрузить для всех ячеек
+          </button>
+        )}
+        <input ref={bulkFileRef} type="file" accept="audio/*" className="hidden"
+          onChange={e => handleBulkFile(e.target.files?.[0])} />
+      </div>
+
       {/* Search */}
-      <div className="px-4 pb-3">
+      <div className="px-4 pb-2">
         <div className="flex items-center gap-2 bg-white rounded-2xl px-4 h-11 border border-gray-100">
           <Icon name="Search" size={16} className="text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Найти ячейку..."
-            className="flex-1 bg-transparent outline-none text-[14px] text-gray-800 placeholder:text-gray-400"
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Найти ячейку..."
+            className="flex-1 bg-transparent outline-none text-[14px] text-gray-800 placeholder:text-gray-400" />
           {search && (
-            <button onClick={() => setSearch("")}>
-              <Icon name="X" size={14} className="text-gray-400" />
-            </button>
+            <button onClick={() => setSearch("")}><Icon name="X" size={14} className="text-gray-400" /></button>
           )}
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="mx-4 mb-3 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-[#7B00FF] rounded-full transition-all duration-500"
-          style={{ width: `${(uploadedCount / CELL_COUNT) * 100}%` }}
-        />
+      <div className="mx-4 my-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-full bg-[#7B00FF] rounded-full transition-all duration-500"
+          style={{ width: `${(uploadedCount / CELL_COUNT) * 100}%` }} />
       </div>
 
-      {/* Grid */}
+      {/* List */}
       <div className="flex-1 overflow-y-auto px-4 pb-6">
         <div className="grid grid-cols-1 gap-2">
           {filteredNums.map(n => {
@@ -328,31 +375,21 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
             const name = names[n - 1];
             return (
               <div key={n} className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
-                {/* Number badge */}
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[15px] flex-shrink-0"
-                  style={{ background: uploaded ? "#7B00FF" : "#F0E6FF", color: uploaded ? "#fff" : "#7B00FF" }}
-                >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[15px] flex-shrink-0"
+                  style={{ background: uploaded ? "#7B00FF" : "#F0E6FF", color: uploaded ? "#fff" : "#7B00FF" }}>
                   {n}
                 </div>
-
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-bold text-gray-900">Ячейка {n}</div>
-                  {uploaded && name ? (
-                    <div className="text-[11px] text-[#7B00FF] truncate">{name}</div>
-                  ) : (
-                    <div className="text-[11px] text-gray-400">Нет озвучки</div>
-                  )}
+                  {uploaded && name
+                    ? <div className="text-[11px] text-[#7B00FF] truncate">{name}</div>
+                    : <div className="text-[11px] text-gray-400">Нет озвучки</div>
+                  }
                 </div>
-
-                {/* Actions */}
                 <div className="flex gap-1.5">
-                  <button
-                    onClick={() => fileRefs.current[n]?.click()}
-                    disabled={loading === n}
+                  <button onClick={() => fileRefs.current[n]?.click()} disabled={loading === n}
                     className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-all"
-                    style={{ background: uploaded ? "#F5F0FF" : "#7B00FF" }}
-                  >
+                    style={{ background: uploaded ? "#F5F0FF" : "#7B00FF" }}>
                     {loading === n
                       ? <Icon name="Loader2" size={14} className="animate-spin" style={{ color: uploaded ? "#7B00FF" : "#fff" }} />
                       : <Icon name={uploaded ? "RefreshCw" : "Upload"} size={14} style={{ color: uploaded ? "#7B00FF" : "#fff" }} />
@@ -369,8 +406,8 @@ function CellSoundsScreen({ onBack }: { onBack: () => void }) {
                     </button>
                   )}
                 </div>
-
-                <input ref={el => { fileRefs.current[n] = el; }} type="file" accept="audio/*" className="hidden" onChange={e => handleFile(n, e.target.files?.[0])} />
+                <input ref={el => { fileRefs.current[n] = el; }} type="file" accept="audio/*" className="hidden"
+                  onChange={e => handleFile(n, e.target.files?.[0])} />
               </div>
             );
           })}

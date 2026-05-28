@@ -118,11 +118,27 @@ export async function playIssueSequence(cellNumber: number, itemCount: number) {
   await playSound("check_goods_before_fitting");
 }
 
-/** Играет success_sound N раз — вызывается при «Выбрать все» */
+/** Играет success_sound N раз, затем check_goods_before_fitting — вызывается при «Выбрать все» */
 export async function playSelectAll(itemCount: number) {
   for (let i = 0; i < itemCount; i++) {
     await playSound("success_sound");
     await wait(150);
+  }
+  await wait(200);
+  await playSound("check_goods_before_fitting");
+}
+
+/** Bulk-загрузка: один файл → все ячейки от fromN до toN */
+export async function saveCellSoundBulk(
+  fromN: number,
+  toN: number,
+  file: File,
+  onProgress?: (done: number, total: number) => void
+): Promise<void> {
+  const total = toN - fromN + 1;
+  for (let i = 0; i < total; i++) {
+    await saveSoundByKey(cellKey(fromN + i), file);
+    onProgress?.(i + 1, total);
   }
 }
 
