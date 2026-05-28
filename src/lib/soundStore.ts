@@ -180,12 +180,21 @@ function wait(ms: number): Promise<void> {
 }
 
 async function playSoundByKey(key: string) {
+  // Сначала пробуем localStorage (быстро, работает всегда)
+  const localData = getSoundDataUrlByKey(key);
+  if (localData) {
+    await playDataUrl(localData);
+    return;
+  }
+  // Затем облако (если режим облака и есть URL в кэше)
   if (isCloudMode()) {
-    const url = cloudCache[key];
+    let url = cloudCache[key];
+    // Если кэш пуст — грузим список с сервера
+    if (!url) {
+      await fetchCloudSounds();
+      url = cloudCache[key];
+    }
     if (url) await playUrl(url);
-  } else {
-    const data = getSoundDataUrlByKey(key);
-    if (data) await playDataUrl(data);
   }
 }
 
