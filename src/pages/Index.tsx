@@ -477,10 +477,3 @@ function MoreScreen({ onSoundSettings }: { onSoundSettings: () => void }) {
     </div>
   );
 }
-
-const TAB_TITLES: Record<Tab, string> = {
-  accept: "Принять",
-  issue:  "Выдать",
-  return: "Вернуть",
-  more:   "Ещё",
-};
