@@ -1,15 +1,14 @@
 """
 API для хранения звуков в облаке (S3 + PostgreSQL).
-GET  /        — список всех звуков
-POST /upload  — загрузить звук (base64 в теле)
-DELETE /      — удалить звук по key
+GET    / — список всех звуков
+POST   / — загрузить звук (body: {key, name, data: base64dataurl})
+DELETE / — удалить звук по key (body: {key})
 """
 import json
 import os
 import base64
 import boto3
 import psycopg2
-from urllib.parse import urlparse
 
 
 CORS = {
@@ -41,12 +40,11 @@ def cdn_url(s3_path: str) -> str:
 
 def handler(event: dict, context) -> dict:
     method = event.get("httpMethod", "GET")
-    path = event.get("path", "/")
 
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
-    # GET / — список звуков
+    # GET — список звуков
     if method == "GET":
         conn = get_db()
         cur = conn.cursor()
@@ -54,50 +52,66 @@ def handler(event: dict, context) -> dict:
         rows = cur.fetchall()
         conn.close()
         sounds = [{"key": r[0], "name": r[1], "url": r[2]} for r in rows]
-        return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                "body": json.dumps({"sounds": sounds})}
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"sounds": sounds}),
+        }
 
-    # POST /upload — загрузить звук
-    if method == "POST" and "upload" in path:
-        body = json.loads(event.get("body") or "{}")
-        sound_key = body["key"]       # e.g. "cell_1" or "goods"
-        file_name = body["name"]      # оригинальное имя файла
-        data_url = body["data"]       # data:audio/...;base64,...
+    # POST — загрузить/заменить звук
+    if method == "POST":
+        raw_body = event.get("body") or ""
+        if event.get("isBase64Encoded"):
+            raw_body = base64.b64decode(raw_body).decode("utf-8")
+        body = json.loads(raw_body)
 
-        # Декодируем base64
+        sound_key = body["key"]
+        file_name = body["name"]
+        data_url = body["data"]  # data:audio/...;base64,...
+
         header, b64 = data_url.split(",", 1)
-        content_type = header.split(";")[0].replace("data:", "")
+        content_type = header.split(";")[0].replace("data:", "") or "audio/mpeg"
         audio_bytes = base64.b64decode(b64)
 
-        # Определяем расширение
         ext = file_name.rsplit(".", 1)[-1] if "." in file_name else "mp3"
         s3_path = f"sounds/{sound_key}.{ext}"
 
-        # Загружаем в S3
         s3 = get_s3()
-        s3.put_object(Bucket="files", Key=s3_path, Body=audio_bytes,
-                      ContentType=content_type, ACL="public-read")
+        s3.put_object(
+            Bucket="files",
+            Key=s3_path,
+            Body=audio_bytes,
+            ContentType=content_type,
+            ACL="public-read",
+        )
 
         url = cdn_url(s3_path)
 
-        # Сохраняем в БД (upsert)
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
             f"""INSERT INTO {SCHEMA}.sounds (key, name, s3_path, url)
                 VALUES (%s, %s, %s, %s)
-                ON CONFLICT (key) DO UPDATE SET name=EXCLUDED.name, s3_path=EXCLUDED.s3_path, url=EXCLUDED.url, created_at=NOW()""",
-            (sound_key, file_name, s3_path, url)
+                ON CONFLICT (key) DO UPDATE
+                SET name=EXCLUDED.name, s3_path=EXCLUDED.s3_path,
+                    url=EXCLUDED.url, created_at=NOW()""",
+            (sound_key, file_name, s3_path, url),
         )
         conn.commit()
         conn.close()
 
-        return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                "body": json.dumps({"key": sound_key, "url": url, "name": file_name})}
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"key": sound_key, "url": url, "name": file_name}),
+        }
 
-    # DELETE / — удалить звук
+    # DELETE — удалить звук
     if method == "DELETE":
-        body = json.loads(event.get("body") or "{}")
+        raw_body = event.get("body") or "{}"
+        if event.get("isBase64Encoded"):
+            raw_body = base64.b64decode(raw_body).decode("utf-8")
+        body = json.loads(raw_body)
         sound_key = body["key"]
 
         conn = get_db()
@@ -105,17 +119,19 @@ def handler(event: dict, context) -> dict:
         cur.execute(f"SELECT s3_path FROM {SCHEMA}.sounds WHERE key=%s", (sound_key,))
         row = cur.fetchone()
         if row:
-            s3_path = row[0]
             try:
                 s3 = get_s3()
-                s3.delete_object(Bucket="files", Key=s3_path)
+                s3.delete_object(Bucket="files", Key=row[0])
             except Exception:
                 pass
             cur.execute(f"DELETE FROM {SCHEMA}.sounds WHERE key=%s", (sound_key,))
             conn.commit()
         conn.close()
 
-        return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                "body": json.dumps({"ok": True})}
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"ok": True}),
+        }
 
     return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "Not found"})}

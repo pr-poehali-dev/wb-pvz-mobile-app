@@ -58,7 +58,7 @@ export async function fetchCloudSounds(): Promise<{ key: string; name: string; u
 
 export async function uploadCloudSound(key: string, file: File): Promise<string> {
   const dataUrl = await fileToDataUrl(file);
-  const res = await fetch(`${API_URL}/upload`, {
+  const res = await fetch(`${API_URL}/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key, name: file.name, data: dataUrl }),
