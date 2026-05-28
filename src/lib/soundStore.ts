@@ -6,6 +6,9 @@ export type SoundKey =
   | "payment_on_delivery";
 
 export type CellSoundKey = `cell_${number}`;
+export type QtySoundKey = `qty_${number}`;
+
+export const QTY_COUNT = 50; // озвучка количества от 1 до 50
 
 export const SOUND_META: Record<SoundKey, { label: string; desc: string }> = {
   goods: {
@@ -133,6 +136,14 @@ export function getCellSoundName(n: number) { return getSoundNameByKey(cellKey(n
 export function saveCellSound(n: number, file: File) { return saveSoundByKey(cellKey(n), file); }
 export function removeCellSound(n: number) { return removeSoundByKey(cellKey(n)); }
 
+// ── Количество товаров (qty_1 … qty_50) ───────────────────────────────────
+
+export function qtyKey(n: number): QtySoundKey { return `qty_${n}`; }
+export function hasQtySound(n: number) { return hasSoundByKey(qtyKey(n)); }
+export function getQtySoundName(n: number) { return getSoundNameByKey(qtyKey(n)); }
+export function saveQtySound(n: number, file: File) { return saveSoundByKey(qtyKey(n), file); }
+export function removeQtySound(n: number) { return removeSoundByKey(qtyKey(n)); }
+
 export async function saveCellSoundBulk(
   fromN: number,
   toN: number,
@@ -206,23 +217,27 @@ export async function playCellSound(cellNumber: number) {
   await playSoundByKey(cellKey(cellNumber));
 }
 
+export async function playQtySound(itemCount: number) {
+  await playSoundByKey(qtyKey(itemCount));
+}
+
 /**
  * Сценарий при открытии заказа (вкладка «Выдать»):
- * Ячейка [N] → goods → количество (ячейка с номером itemCount) → payment_on_delivery (если нужно)
+ * Ячейка [N] → goods → qty_[itemCount] → payment_on_delivery (если нужно)
  */
 export async function playIssueSequence(
   cellNumber: number,
   itemCount: number,
   paymentOnDelivery = false
 ) {
-  // 1. Номер ячейки
+  // 1. Номер ячейки (cell_N)
   await playCellSound(cellNumber);
   await wait(200);
   // 2. «goods»
   await playSound("goods");
   await wait(100);
-  // 3. Количество товаров — берём озвучку ячейки с номером itemCount
-  await playCellSound(itemCount);
+  // 3. Количество товаров (qty_N — отдельный пул, не путать с ячейками)
+  await playQtySound(itemCount);
   await wait(200);
   // 4. Оплата при получении (если есть)
   if (paymentOnDelivery) {

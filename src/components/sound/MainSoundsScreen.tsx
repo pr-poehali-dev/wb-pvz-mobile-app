@@ -5,6 +5,7 @@ import {
   SOUND_KEYS, SOUND_META, SoundKey,
   saveSound, removeSound, getSoundName, hasSound, getSoundDataUrl,
   CELL_COUNT, hasCellSound,
+  QTY_COUNT, hasQtySound,
   isCloudMode, setCloudMode,
   fetchCloudSounds, uploadCloudSound, deleteCloudSound,
 } from "@/lib/soundStore";
@@ -12,9 +13,10 @@ import {
 interface Props {
   onBack: () => void;
   onCells: () => void;
+  onQty: () => void;
 }
 
-export default function MainSoundsScreen({ onBack, onCells }: Props) {
+export default function MainSoundsScreen({ onBack, onCells, onQty }: Props) {
   const [cloud, setCloud] = useState(isCloudMode);
   const [syncing, setSyncing] = useState(false);
   const [localStatuses, setLocalStatuses] = useState<Record<SoundKey, boolean>>(
@@ -108,6 +110,10 @@ export default function MainSoundsScreen({ onBack, onCells }: Props) {
     ? Object.keys(cloudMap).filter(k => k.startsWith("cell_")).length
     : Array.from({ length: CELL_COUNT }, (_, i) => i + 1).filter(n => hasCellSound(n)).length;
 
+  const uploadedQty = cloud
+    ? Object.keys(cloudMap).filter(k => k.startsWith("qty_")).length
+    : Array.from({ length: QTY_COUNT }, (_, i) => i + 1).filter(n => hasQtySound(n)).length;
+
   return (
     <div className="flex flex-col h-screen bg-[#F5F0FF] max-w-md mx-auto overflow-hidden select-none">
       <div className="h-10" />
@@ -157,6 +163,20 @@ export default function MainSoundsScreen({ onBack, onCells }: Props) {
             <div className="text-[14px] font-bold text-gray-900">Ячейки 1–200</div>
             <div className="text-[12px] text-gray-400">
               {uploadedCells > 0 ? `Загружено ${uploadedCells} из ${CELL_COUNT}` : "Нет загруженных озвучек"}
+            </div>
+          </div>
+          <Icon name="ChevronRight" size={18} className="text-gray-400" />
+        </button>
+
+        {/* Количество товаров */}
+        <button onClick={onQty} className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 active:scale-95 transition-transform" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
+          <div className="w-11 h-11 rounded-2xl bg-[#F0E6FF] flex items-center justify-center flex-shrink-0">
+            <Icon name="Hash" size={22} className="text-[#7B00FF]" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="text-[14px] font-bold text-gray-900">Количество 1–50</div>
+            <div className="text-[12px] text-gray-400">
+              {uploadedQty > 0 ? `Загружено ${uploadedQty} из ${QTY_COUNT}` : "Нет загруженных озвучек"}
             </div>
           </div>
           <Icon name="ChevronRight" size={18} className="text-gray-400" />
