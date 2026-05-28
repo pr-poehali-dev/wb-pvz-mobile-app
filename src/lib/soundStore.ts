@@ -28,10 +28,58 @@ export const SOUND_META: Record<SoundKey, { label: string; desc: string }> = {
 export const SOUND_KEYS = Object.keys(SOUND_META) as SoundKey[];
 export const CELL_COUNT = 200;
 
+// ── API URL ────────────────────────────────────────────────────────────────
+
+const API_URL = "https://functions.poehali.dev/8e89a9c5-6a4b-4325-99ac-3725856c8f61";
+
+// ── Cloud mode flag ────────────────────────────────────────────────────────
+
+const CLOUD_MODE_KEY = "wb_pvz_cloud_mode";
+
+export function isCloudMode(): boolean {
+  return localStorage.getItem(CLOUD_MODE_KEY) === "1";
+}
+
+export function setCloudMode(val: boolean) {
+  localStorage.setItem(CLOUD_MODE_KEY, val ? "1" : "0");
+}
+
+// ── Cloud cache (URL по key) ───────────────────────────────────────────────
+
+const cloudCache: Record<string, string> = {};
+
+export async function fetchCloudSounds(): Promise<{ key: string; name: string; url: string }[]> {
+  const res = await fetch(`${API_URL}/`);
+  const data = await res.json();
+  const sounds: { key: string; name: string; url: string }[] = data.sounds ?? [];
+  sounds.forEach(s => { cloudCache[s.key] = s.url; });
+  return sounds;
+}
+
+export async function uploadCloudSound(key: string, file: File): Promise<string> {
+  const dataUrl = await fileToDataUrl(file);
+  const res = await fetch(`${API_URL}/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, name: file.name, data: dataUrl }),
+  });
+  const data = await res.json();
+  cloudCache[key] = data.url;
+  return data.url;
+}
+
+export async function deleteCloudSound(key: string): Promise<void> {
+  await fetch(`${API_URL}/`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key }),
+  });
+  delete cloudCache[key];
+}
+
+// ── localStorage ───────────────────────────────────────────────────────────
+
 const LS_PREFIX = "wb_pvz_sound_";
-
-// ── Generic save/load ──────────────────────────────────────────────────────
-
 function lsKey(key: string) { return LS_PREFIX + key; }
 
 export function saveSoundByKey(key: string, file: File): Promise<void> {
@@ -68,15 +116,11 @@ export function hasSoundByKey(key: string): boolean {
   return !!localStorage.getItem(lsKey(key));
 }
 
-// ── Typed wrappers (SoundKey) ──────────────────────────────────────────────
-
 export function saveSound(key: SoundKey, file: File) { return saveSoundByKey(key, file); }
 export function removeSound(key: SoundKey) { return removeSoundByKey(key); }
 export function getSoundDataUrl(key: SoundKey) { return getSoundDataUrlByKey(key); }
 export function getSoundName(key: SoundKey) { return getSoundNameByKey(key); }
 export function hasSound(key: SoundKey) { return hasSoundByKey(key); }
-
-// ── Cell helpers ───────────────────────────────────────────────────────────
 
 export function cellKey(n: number): CellSoundKey { return `cell_${n}`; }
 export function hasCellSound(n: number) { return hasSoundByKey(cellKey(n)); }
@@ -84,51 +128,6 @@ export function getCellSoundName(n: number) { return getSoundNameByKey(cellKey(n
 export function saveCellSound(n: number, file: File) { return saveSoundByKey(cellKey(n), file); }
 export function removeCellSound(n: number) { return removeSoundByKey(cellKey(n)); }
 
-// ── Playback ───────────────────────────────────────────────────────────────
-
-function playDataUrl(dataUrl: string): Promise<void> {
-  return new Promise((resolve) => {
-    const audio = new Audio(dataUrl);
-    audio.onended = () => resolve();
-    audio.onerror = () => resolve();
-    audio.play().catch(() => resolve());
-  });
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-export async function playSound(key: SoundKey) {
-  const data = getSoundDataUrl(key);
-  if (data) await playDataUrl(data);
-}
-
-export async function playCellSound(cellNumber: number) {
-  const data = getSoundDataUrlByKey(cellKey(cellNumber));
-  if (data) await playDataUrl(data);
-}
-
-/** Играет при открытии заказа: ячейка → кол-во товаров → (check_goods) */
-export async function playIssueSequence(cellNumber: number, itemCount: number) {
-  await playCellSound(cellNumber);
-  await wait(200);
-  await playSound("goods");
-  await wait(200);
-  await playSound("check_goods_before_fitting");
-}
-
-/** Играет success_sound N раз, затем check_goods_before_fitting — вызывается при «Выбрать все» */
-export async function playSelectAll(itemCount: number) {
-  for (let i = 0; i < itemCount; i++) {
-    await playSound("success_sound");
-    await wait(150);
-  }
-  await wait(200);
-  await playSound("check_goods_before_fitting");
-}
-
-/** Bulk-загрузка: один файл → все ячейки от fromN до toN */
 export async function saveCellSoundBulk(
   fromN: number,
   toN: number,
@@ -142,7 +141,74 @@ export async function saveCellSoundBulk(
   }
 }
 
-/** Играет при нажатии «Выдать» */
+// ── Unified playback ───────────────────────────────────────────────────────
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject();
+    r.readAsDataURL(file);
+  });
+}
+
+function playDataUrl(dataUrl: string): Promise<void> {
+  return new Promise((resolve) => {
+    const audio = new Audio(dataUrl);
+    audio.onended = () => resolve();
+    audio.onerror = () => resolve();
+    audio.play().catch(() => resolve());
+  });
+}
+
+function playUrl(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    const audio = new Audio(url);
+    audio.onended = () => resolve();
+    audio.onerror = () => resolve();
+    audio.play().catch(() => resolve());
+  });
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function playSoundByKey(key: string) {
+  if (isCloudMode()) {
+    const url = cloudCache[key];
+    if (url) await playUrl(url);
+  } else {
+    const data = getSoundDataUrlByKey(key);
+    if (data) await playDataUrl(data);
+  }
+}
+
+export async function playSound(key: SoundKey) {
+  await playSoundByKey(key);
+}
+
+export async function playCellSound(cellNumber: number) {
+  await playSoundByKey(cellKey(cellNumber));
+}
+
+export async function playIssueSequence(cellNumber: number, itemCount: number) {
+  await playCellSound(cellNumber);
+  await wait(200);
+  await playSound("goods");
+  await wait(200);
+  await playSound("check_goods_before_fitting");
+}
+
+export async function playSelectAll(itemCount: number) {
+  for (let i = 0; i < itemCount; i++) {
+    await playSound("success_sound");
+    await wait(150);
+  }
+  await wait(200);
+  await playSound("check_goods_before_fitting");
+}
+
 export async function playIssueComplete() {
   await playSound("thanks_for_order_rate_pickpoint");
 }

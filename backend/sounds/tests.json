@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "GET sounds list",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": { "sounds": [] },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
