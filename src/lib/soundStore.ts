@@ -190,21 +190,28 @@ function wait(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// Флаг — идёт ли уже загрузка облачного кэша
+let cloudFetchPromise: Promise<void> | null = null;
+
+async function ensureCloudCache(): Promise<void> {
+  if (Object.keys(cloudCache).length > 0) return;
+  if (!cloudFetchPromise) {
+    cloudFetchPromise = fetchCloudSounds().then(() => { cloudFetchPromise = null; });
+  }
+  await cloudFetchPromise;
+}
+
 async function playSoundByKey(key: string) {
-  // Сначала пробуем localStorage (быстро, работает всегда)
+  // Сначала пробуем localStorage (быстро, всегда доступно)
   const localData = getSoundDataUrlByKey(key);
   if (localData) {
     await playDataUrl(localData);
     return;
   }
-  // Затем облако (если режим облака и есть URL в кэше)
+  // Затем облако — один общий fetch, без гонки
   if (isCloudMode()) {
-    let url = cloudCache[key];
-    // Если кэш пуст — грузим список с сервера
-    if (!url) {
-      await fetchCloudSounds();
-      url = cloudCache[key];
-    }
+    await ensureCloudCache();
+    const url = cloudCache[key];
     if (url) await playUrl(url);
   }
 }
@@ -224,22 +231,32 @@ export async function playQtySound(itemCount: number) {
 /**
  * Сценарий при открытии заказа (вкладка «Выдать»):
  * Ячейка [N] → goods → qty_[itemCount] → payment_on_delivery (если нужно)
+ * isCancelled — колбэк, возвращающий true если нужно прервать цепочку
  */
 export async function playIssueSequence(
   cellNumber: number,
   itemCount: number,
-  paymentOnDelivery = false
+  paymentOnDelivery = false,
+  isCancelled?: () => boolean
 ) {
-  // 1. Номер ячейки (cell_N)
+  const ok = () => !isCancelled?.();
+
+  // Предзагружаем облачный кэш заранее — до начала цепочки
+  if (isCloudMode()) await ensureCloudCache();
+
+  if (!ok()) return;
   await playCellSound(cellNumber);
   await wait(200);
-  // 2. «goods»
+
+  if (!ok()) return;
   await playSound("goods");
   await wait(100);
-  // 3. Количество товаров (qty_N — отдельный пул, не путать с ячейками)
+
+  if (!ok()) return;
   await playQtySound(itemCount);
   await wait(200);
-  // 4. Оплата при получении (если есть)
+
+  if (!ok()) return;
   if (paymentOnDelivery) {
     await playSound("payment_on_delivery");
     await wait(200);

@@ -24,11 +24,16 @@ export default function OrderScreen({
   const totalPrice = order.goods.reduce((s, g) => s + g.price, 0);
 
   useEffect(() => {
-    if (tab === "issue") {
-      // cell теперь число — передаём напрямую
-      playIssueSequence(order.cell, order.items, order.paymentOnDelivery ?? false);
-    }
-  }, [order.id, order.cell, order.items, order.paymentOnDelivery, tab]);
+    if (tab !== "issue") return;
+    let cancelled = false;
+    playIssueSequence(
+      order.cell,
+      order.items,
+      order.paymentOnDelivery ?? false,
+      () => cancelled
+    );
+    return () => { cancelled = true; };
+  }, [order.id]); // только при смене заказа, не при каждом ре-рендере
 
   return (
     <div className="flex flex-col h-screen bg-white max-w-md mx-auto overflow-hidden select-none">
