@@ -2,26 +2,31 @@ export type SoundKey =
   | "goods"
   | "success_sound"
   | "check_goods_before_fitting"
-  | "thanks_for_order_rate_pickpoint";
+  | "thanks_for_order_rate_pickpoint"
+  | "payment_on_delivery";
 
 export type CellSoundKey = `cell_${number}`;
 
 export const SOUND_META: Record<SoundKey, { label: string; desc: string }> = {
   goods: {
-    label: "Количество товаров",
-    desc: "Озвучивает «N товаров» — играет после ячейки",
+    label: "goods",
+    desc: "Слово перед количеством товаров: «goods — [N]»",
   },
   success_sound: {
-    label: "Звук товара",
-    desc: "Играет для каждого товара при нажатии «Выбрать все»",
+    label: "success_sound",
+    desc: "Играет N раз (по числу товаров) при нажатии «Выбрать все»",
   },
   check_goods_before_fitting: {
-    label: "Проверьте товар",
-    desc: "«Проверьте товар перед примеркой» — после всех товаров",
+    label: "check_goods_before_fitting",
+    desc: "Сразу после всех success_sound — «Проверьте товар перед примеркой»",
   },
   thanks_for_order_rate_pickpoint: {
-    label: "Спасибо за заказ",
-    desc: "«Спасибо, оцените пункт выдачи» — при нажатии Выдать",
+    label: "thanks_for_order_rate_pickpoint",
+    desc: "После нажатия «Выдать» / «Готово» — «Спасибо, оцените ПВЗ»",
+  },
+  payment_on_delivery: {
+    label: "payment_on_delivery",
+    desc: "Озвучивается если заказ с оплатой при получении",
   },
 };
 
@@ -192,14 +197,35 @@ export async function playCellSound(cellNumber: number) {
   await playSoundByKey(cellKey(cellNumber));
 }
 
-export async function playIssueSequence(cellNumber: number, itemCount: number) {
+/**
+ * Сценарий при открытии заказа (вкладка «Выдать»):
+ * Ячейка [N] → goods → количество (ячейка с номером itemCount) → payment_on_delivery (если нужно)
+ */
+export async function playIssueSequence(
+  cellNumber: number,
+  itemCount: number,
+  paymentOnDelivery = false
+) {
+  // 1. Номер ячейки
   await playCellSound(cellNumber);
   await wait(200);
+  // 2. «goods»
   await playSound("goods");
+  await wait(100);
+  // 3. Количество товаров — берём озвучку ячейки с номером itemCount
+  await playCellSound(itemCount);
   await wait(200);
-  await playSound("check_goods_before_fitting");
+  // 4. Оплата при получении (если есть)
+  if (paymentOnDelivery) {
+    await playSound("payment_on_delivery");
+    await wait(200);
+  }
 }
 
+/**
+ * Сценарий при нажатии «Выбрать все»:
+ * success_sound × N → check_goods_before_fitting
+ */
 export async function playSelectAll(itemCount: number) {
   for (let i = 0; i < itemCount; i++) {
     await playSound("success_sound");
@@ -209,6 +235,10 @@ export async function playSelectAll(itemCount: number) {
   await playSound("check_goods_before_fitting");
 }
 
+/**
+ * Сценарий при нажатии «Выдать» / «Готово»:
+ * thanks_for_order_rate_pickpoint
+ */
 export async function playIssueComplete() {
   await playSound("thanks_for_order_rate_pickpoint");
 }

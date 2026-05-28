@@ -17,11 +17,12 @@ export interface Order {
   barcode: string;
   customer: string;
   phone: string;
-  cell: string;
+  cell: number;          // номер ячейки — всегда число
   items: number;
   status: "pending" | "done";
   time: string;
   goods: GoodItem[];
+  paymentOnDelivery?: boolean;
 }
 
 export const TAB_CONFIG: Record<Tab, { label: string; icon: string }> = {
@@ -50,7 +51,7 @@ export const MOCK_ORDERS: Record<Tab, Order[]> = {
   accept: [
     {
       id: "1", barcode: "WB-4821930", customer: "Анна К.", phone: "+7 (***) *** 14-03",
-      cell: "A-14", items: 3, status: "pending", time: "10:14",
+      cell: 14, items: 3, status: "pending", time: "10:14",
       goods: [
         { id: "g1", barcode: "12345678", name: "Платье летнее", brand: "Zara", price: 3200, tags: ["НЕ ОПЛАЧЕН"], checked: false },
         { id: "g2", barcode: "12345679", name: "Блузка шёлк", brand: "H&M", price: 1800, tags: [], checked: false },
@@ -59,7 +60,7 @@ export const MOCK_ORDERS: Record<Tab, Order[]> = {
     },
     {
       id: "2", barcode: "WB-3940182", customer: "Михаил Р.", phone: "+7 (***) *** 22-11",
-      cell: "B-07", items: 1, status: "done", time: "09:52",
+      cell: 7, items: 1, status: "done", time: "09:52",
       goods: [
         { id: "g4", barcode: "99887766", name: "Кроссовки", brand: "Nike", price: 8900, tags: [], checked: true },
       ],
@@ -68,7 +69,7 @@ export const MOCK_ORDERS: Record<Tab, Order[]> = {
   issue: [
     {
       id: "4", barcode: "WB-9102847", customer: "Дмитрий В.", phone: "+7 (***) *** 24-03",
-      cell: "C-02", items: 2, status: "pending", time: "10:22",
+      cell: 2, items: 2, status: "pending", time: "10:22", paymentOnDelivery: true,
       goods: [
         { id: "g5", barcode: "12345678", name: "Кеды", brand: "Pepe Jeans", price: 7000, tags: ["НЕ ОПЛАЧЕН", "НЕВОЗВРАТНЫЙ"], checked: false },
         { id: "g6", barcode: "12345678", name: "Носки (3 пары)", brand: "Calvin Klein", price: 1200, tags: [], checked: false },
@@ -76,7 +77,7 @@ export const MOCK_ORDERS: Record<Tab, Order[]> = {
     },
     {
       id: "5", barcode: "WB-5534901", customer: "Ольга Б.", phone: "+7 (***) *** 55-90",
-      cell: "A-03", items: 1, status: "done", time: "10:05",
+      cell: 3, items: 1, status: "done", time: "10:05",
       goods: [
         { id: "g7", barcode: "55544433", name: "Сумка кожаная", brand: "Guess", price: 12000, tags: [], checked: true },
       ],
@@ -85,7 +86,7 @@ export const MOCK_ORDERS: Record<Tab, Order[]> = {
   return: [
     {
       id: "6", barcode: "WB-2290481", customer: "Иван С.", phone: "+7 (***) *** 81-22",
-      cell: "D-11", items: 1, status: "pending", time: "10:18",
+      cell: 11, items: 1, status: "pending", time: "10:18",
       goods: [
         { id: "g8", barcode: "44433322", name: "Джинсы slim", brand: "Levi's", price: 5400, tags: ["ВОЗВРАТ"], checked: false },
       ],

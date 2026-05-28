@@ -25,10 +25,10 @@ export default function OrderScreen({
 
   useEffect(() => {
     if (tab === "issue") {
-      const cellNum = parseInt(order.cell.replace(/\D/g, ""), 10) || 1;
-      playIssueSequence(cellNum, order.items);
+      // cell теперь число — передаём напрямую
+      playIssueSequence(order.cell, order.items, order.paymentOnDelivery ?? false);
     }
-  }, [order.id, order.items, order.cell, tab]);
+  }, [order.id, order.cell, order.items, order.paymentOnDelivery, tab]);
 
   return (
     <div className="flex flex-col h-screen bg-white max-w-md mx-auto overflow-hidden select-none">
@@ -50,10 +50,18 @@ export default function OrderScreen({
         </div>
       </div>
 
-      {/* Ячейка */}
-      <div className="mx-5 mb-3 bg-[#F5F0FF] rounded-2xl px-4 py-2.5 flex items-center gap-2">
-        <Icon name="MapPin" size={15} className="text-[#7B00FF]" />
-        <span className="text-[13px] font-semibold text-[#7B00FF]">Ячейка {order.cell}</span>
+      {/* Ячейка + payment badge */}
+      <div className="mx-5 mb-3 flex items-center gap-2">
+        <div className="flex-1 bg-[#F5F0FF] rounded-2xl px-4 py-2.5 flex items-center gap-2">
+          <Icon name="MapPin" size={15} className="text-[#7B00FF]" />
+          <span className="text-[13px] font-semibold text-[#7B00FF]">Ячейка {order.cell}</span>
+        </div>
+        {order.paymentOnDelivery && (
+          <div className="bg-orange-100 rounded-2xl px-3 py-2.5 flex items-center gap-1.5">
+            <Icon name="Banknote" size={14} className="text-orange-600" />
+            <span className="text-[12px] font-bold text-orange-600">Налич.</span>
+          </div>
+        )}
       </div>
 
       {/* Check row */}
@@ -132,7 +140,7 @@ export default function OrderScreen({
             </button>
           ) : (
             <button
-              onClick={onBack}
+              onClick={onIssue}
               className="flex-1 h-14 rounded-2xl bg-[#7B00FF] text-white font-bold text-[16px] flex items-center justify-center gap-2 shadow-lg shadow-purple-200 active:scale-95 transition-transform"
             >
               <Icon name="Check" size={20} />

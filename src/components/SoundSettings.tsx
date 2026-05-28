@@ -166,17 +166,24 @@ function MainSoundsScreen({ onBack, onCells }: { onBack: () => void; onCells: ()
       <div className="mx-4 mb-3 bg-white rounded-2xl p-4" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
         <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Цепочка воспроизведения</div>
         <div className="flex items-center gap-1 flex-wrap text-[11px] font-semibold">
+          <span className="text-[9px] text-gray-400 font-bold uppercase">Открытие:</span>
           <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Ячейка №</span>
-          <Icon name="ArrowRight" size={12} className="text-gray-300" />
-          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Кол-во</span>
-          <Icon name="ArrowRight" size={12} className="text-gray-300" />
-          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">Звук × N</span>
-          <Icon name="ArrowRight" size={12} className="text-gray-300" />
-          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Проверьте</span>
-          <Icon name="ArrowRight" size={12} className="text-gray-300" />
-          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg">Спасибо</span>
+          <Icon name="ArrowRight" size={11} className="text-gray-300" />
+          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">goods</span>
+          <Icon name="ArrowRight" size={11} className="text-gray-300" />
+          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">кол-во</span>
+          <Icon name="ArrowRight" size={11} className="text-gray-300" />
+          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">payment?</span>
         </div>
-        <div className="text-[10px] text-gray-400 mt-1.5">«Звук × N» и «Проверьте» — при нажатии «Выбрать все»</div>
+        <div className="flex items-center gap-1 flex-wrap text-[11px] font-semibold mt-1.5">
+          <span className="text-[9px] text-gray-400 font-bold uppercase">Выбрать все:</span>
+          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">success × N</span>
+          <Icon name="ArrowRight" size={11} className="text-gray-300" />
+          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">check_goods</span>
+          <span className="text-[9px] text-gray-400 font-bold uppercase ml-1">Выдать:</span>
+          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg">thanks</span>
+        </div>
+        <div className="text-[10px] text-gray-400 mt-1.5">Кол-во товаров = озвучка ячейки с тем же номером (напр. 2 товара → файл ячейки 2)</div>
       </div>
 
       <CloudToggle cloud={cloud} onChange={handleToggleCloud} syncing={syncing} />
