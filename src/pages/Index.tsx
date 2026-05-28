@@ -342,8 +342,8 @@ function OrderScreen({ order, tab, onBack, onTabChange, onIssue, onGoodCheck, on
   const totalPrice = order.goods.reduce((s, g) => s + g.price, 0);
 
   useEffect(() => {
-    playIssueSequence(order.items);
-  }, [order.id, order.items]);
+    if (tab === "issue") playIssueSequence(order.items);
+  }, [order.id, order.items, tab]);
 
   return (
     <div className="flex flex-col h-screen bg-white max-w-md mx-auto overflow-hidden select-none">
@@ -443,13 +443,23 @@ function OrderScreen({ order, tab, onBack, onTabChange, onIssue, onGoodCheck, on
           >
             <Icon name="ChevronLeft" size={22} className="text-[#7B00FF]" />
           </button>
-          <button
-            onClick={onIssue}
-            className="flex-1 h-14 rounded-2xl bg-[#7B00FF] text-white font-bold text-[16px] flex items-center justify-center gap-2 shadow-lg shadow-purple-200 active:scale-95 transition-transform"
-          >
-            <Icon name="CheckCircle" size={20} />
-            Выдать {checkedCount > 0 ? `(${checkedCount}/${order.goods.length})` : ""}
-          </button>
+          {tab === "issue" ? (
+            <button
+              onClick={onIssue}
+              className="flex-1 h-14 rounded-2xl bg-[#7B00FF] text-white font-bold text-[16px] flex items-center justify-center gap-2 shadow-lg shadow-purple-200 active:scale-95 transition-transform"
+            >
+              <Icon name="CheckCircle" size={20} />
+              Выдать {checkedCount > 0 ? `(${checkedCount}/${order.goods.length})` : ""}
+            </button>
+          ) : (
+            <button
+              onClick={onBack}
+              className="flex-1 h-14 rounded-2xl bg-[#7B00FF] text-white font-bold text-[16px] flex items-center justify-center gap-2 shadow-lg shadow-purple-200 active:scale-95 transition-transform"
+            >
+              <Icon name="Check" size={20} />
+              Готово
+            </button>
+          )}
         </div>
       </div>
 
