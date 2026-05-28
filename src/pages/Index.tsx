@@ -27,7 +27,18 @@ export default function Index() {
     playBeep("scan");
     const pending = orders[tab].filter(o => o.status === "pending");
     if (pending.length > 0) {
-      setActiveOrder(pending[0]);
+      // Берём следующий pending заказ, но переназначаем ячейку и кол-во случайно
+      const base = pending[0];
+      const randomCell = Math.floor(Math.random() * 200) + 1;
+      const randomItems = Math.floor(Math.random() * 5) + 1;
+      // Генерируем нужное кол-во товаров (берём из существующих или дублируем)
+      const allGoods = base.goods;
+      const goods = Array.from({ length: randomItems }, (_, i) => ({
+        ...allGoods[i % allGoods.length],
+        id: `${allGoods[i % allGoods.length].id}_${i}`,
+        checked: false,
+      }));
+      setActiveOrder({ ...base, cell: randomCell, items: randomItems, goods });
       setScreen("order");
     } else {
       showToast("Нет ожидающих заказов", "error");
