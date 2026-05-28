@@ -29,52 +29,70 @@ const MOCK_ORDERS: Record<Tab, Order[]> = {
 };
 
 function playBeep(type: "success" | "error" | "scan") {
-   
-  const AudioCtx: typeof AudioContext = window.AudioContext || (window as unknown as Record<string, typeof AudioContext>).webkitAudioContext;
+  const AudioCtx: typeof AudioContext =
+    window.AudioContext ||
+    (window as unknown as Record<string, typeof AudioContext>).webkitAudioContext;
   if (!AudioCtx) return;
   const ctx = new AudioCtx();
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.connect(g);
   g.connect(ctx.destination);
-
   if (type === "success") {
     o.frequency.setValueAtTime(880, ctx.currentTime);
     o.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
     g.gain.setValueAtTime(0.3, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    o.start(ctx.currentTime);
-    o.stop(ctx.currentTime + 0.3);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.3);
   } else if (type === "error") {
     o.type = "sawtooth";
     o.frequency.setValueAtTime(300, ctx.currentTime);
     g.gain.setValueAtTime(0.3, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    o.start(ctx.currentTime);
-    o.stop(ctx.currentTime + 0.4);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.4);
   } else {
     o.frequency.setValueAtTime(660, ctx.currentTime);
     g.gain.setValueAtTime(0.2, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    o.start(ctx.currentTime);
-    o.stop(ctx.currentTime + 0.15);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.15);
   }
 }
 
 const TAB_CONFIG = {
-  accept:  { label: "Принять", icon: "PackageCheck",  color: "#7B00FF", bg: "#F0E6FF" },
-  issue:   { label: "Выдать",  icon: "PackageOpen",   color: "#00C853", bg: "#E8F9EE" },
-  return:  { label: "Вернуть", icon: "PackageMinus",  color: "#FF6D00", bg: "#FFF3E6" },
-  more:    { label: "Ещё",     icon: "Grid3x3",       color: "#607D8B", bg: "#ECEFF1" },
+  accept: { label: "Принять", icon: "Package",     activeIcon: "Package" },
+  issue:  { label: "Выдать",  icon: "Users",        activeIcon: "Users"   },
+  return: { label: "Вернуть", icon: "RotateCcw",   activeIcon: "RotateCcw" },
+  more:   { label: "Ещё",     icon: "MoreHorizontal", activeIcon: "MoreHorizontal" },
+};
+
+const TAB_TITLES: Record<Tab, string> = {
+  accept: "Принять",
+  issue:  "Выдать",
+  return: "Вернуть",
+  more:   "Ещё",
+};
+
+const TAB_SUBTITLES: Record<Tab, string> = {
+  accept: "На примерке 0",
+  issue:  "На примерке 0",
+  return: "Возвратов 0",
+  more:   "",
+};
+
+const SCAN_HINTS: Record<Tab, string> = {
+  accept: "Отсканируйте QR-код\nпосылки или накладную",
+  issue:  "Отсканируйте QR-код\nклиента или курьера",
+  return: "Отсканируйте QR-код\nвозвратной посылки",
+  more:   "",
 };
 
 export default function Index() {
-  const [tab, setTab] = useState<Tab>("accept");
+  const [tab, setTab] = useState<Tab>("issue");
   const [orders, setOrders] = useState(MOCK_ORDERS);
-  const [scanning, setScanning] = useState(false);
   const [scanValue, setScanValue] = useState("");
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [scannedId, setScannedId] = useState<string | null>(null);
+  const [showList, setShowList] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -87,19 +105,13 @@ export default function Index() {
   const handleScan = useCallback(() => {
     const val = scanValue.trim();
     if (!val) return;
-
-    const found = orders[tab].find(
-      (o) => o.barcode.toLowerCase() === val.toLowerCase()
-    );
-
+    const found = orders[tab].find(o => o.barcode.toLowerCase() === val.toLowerCase());
     if (found) {
       playBeep("success");
       setScannedId(found.id);
-      setOrders((prev) => ({
+      setOrders(prev => ({
         ...prev,
-        [tab]: prev[tab].map((o) =>
-          o.id === found.id ? { ...o, status: "done" } : o
-        ),
+        [tab]: prev[tab].map(o => o.id === found.id ? { ...o, status: "done" } : o),
       }));
       showToast(`Заказ ${found.barcode} обработан`, "success");
       setTimeout(() => setScannedId(null), 1500);
@@ -107,7 +119,6 @@ export default function Index() {
       playBeep("error");
       showToast("Заказ не найден", "error");
     }
-
     setScanValue("");
     inputRef.current?.focus();
   }, [scanValue, orders, tab, showToast]);
@@ -116,7 +127,7 @@ export default function Index() {
     setTab(t);
     setScanValue("");
     setScannedId(null);
-    setTimeout(() => inputRef.current?.focus(), 100);
+    setShowList(false);
   };
 
   useEffect(() => {
@@ -124,129 +135,171 @@ export default function Index() {
   }, []);
 
   const currentOrders = orders[tab];
-  const doneCount = currentOrders.filter((o) => o.status === "done").length;
-  const pendingCount = currentOrders.filter((o) => o.status === "pending").length;
-  const cfg = TAB_CONFIG[tab];
+  const pendingCount = currentOrders.filter(o => o.status === "pending").length;
+
+  if (showList && tab !== "more") {
+    return (
+      <ListScreen
+        tab={tab}
+        orders={currentOrders}
+        scannedId={scannedId}
+        onBack={() => setShowList(false)}
+        onTabChange={handleTabChange}
+      />
+    );
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-[#F4F0FA] max-w-md mx-auto relative overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F5F0FF] max-w-md mx-auto relative overflow-hidden select-none">
+
+      {/* Status bar area */}
+      <div className="h-10" />
 
       {/* Header */}
-      <div className="wb-gradient text-white px-4 pt-10 pb-5 relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 55%)" }}
-        />
-        <div className="flex items-center justify-between relative z-10">
-          <div>
-            <div className="text-[11px] font-medium opacity-70 mb-0.5 tracking-wide uppercase">Wildberries ПВЗ</div>
-            <div className="text-2xl font-black tracking-tight">Точка выдачи</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-white/20 rounded-xl px-3 py-1.5 text-xs font-bold backdrop-blur-sm">№4821</div>
-            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <Icon name="Bell" size={17} />
-            </div>
-          </div>
+      <div className="flex items-center justify-between px-5 pb-2">
+        <div className="text-center flex-1">
+          <div className="text-[17px] font-bold text-gray-900">{TAB_TITLES[tab]}</div>
+          <div className="text-[13px] text-gray-500 mt-0.5">{TAB_SUBTITLES[tab]}</div>
         </div>
-
-        <div className="flex gap-2.5 mt-4 relative z-10">
-          {[
-            { val: doneCount,           label: "Выполнено" },
-            { val: pendingCount,        label: "Ожидает"   },
-            { val: currentOrders.length, label: "Всего"    },
-          ].map((s) => (
-            <div key={s.label} className="flex-1 bg-white/15 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
-              <div className="text-2xl font-black">{s.val}</div>
-              <div className="text-[11px] opacity-75 mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
+        <button className="absolute right-5 w-9 h-9 flex items-center justify-center">
+          <div className="relative">
+            <Icon name="UserCircle2" size={28} className="text-[#7B00FF]" />
+          </div>
+        </button>
       </div>
 
-      {/* Scan bar */}
-      <div className="px-4 bg-white shadow-sm">
-        <div className="py-3">
-          <div
-            className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-200 ${
-              scanning ? "border-[#7B00FF] bg-purple-50" : "border-[#E8E0F0] bg-[#FAFAFA]"
-            }`}
-            onClick={() => { setScanning(true); inputRef.current?.focus(); }}
-          >
-            <Icon name="ScanLine" size={20} className={scanning ? "text-[#7B00FF]" : "text-gray-400"} />
-            <input
-              ref={inputRef}
-              value={scanValue}
-              onChange={(e) => setScanValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleScan()}
-              onFocus={() => setScanning(true)}
-              onBlur={() => setScanning(false)}
-              placeholder="Сканируйте штрихкод..."
-              className="flex-1 bg-transparent outline-none text-sm font-medium placeholder:text-gray-400 text-gray-800"
-            />
-            {scanValue && (
-              <button
-                onMouseDown={(e) => { e.preventDefault(); handleScan(); }}
-                className="w-8 h-8 rounded-xl bg-[#7B00FF] flex items-center justify-center text-white transition-transform active:scale-95"
-              >
-                <Icon name="ArrowRight" size={15} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Orders list */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
-        {tab === "more" ? (
+      {/* Main area */}
+      {tab === "more" ? (
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           <MoreScreen />
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                {cfg.label} — заказы
-              </span>
-              <span className="text-[11px] text-gray-400">{new Date().toLocaleDateString("ru-RU")}</span>
-            </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
 
-            {currentOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
-                <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-3" style={{ background: cfg.bg }}>
-                  <Icon name={cfg.icon} size={28} style={{ color: cfg.color }} />
+          {/* QR scanner icon */}
+          <div className="relative mb-8">
+            {/* Outer glow ring */}
+            <div className="absolute inset-[-20px] rounded-full bg-[#7B00FF]/5" />
+            <div className="absolute inset-[-10px] rounded-full bg-[#7B00FF]/8" />
+
+            {/* QR frame */}
+            <div className="w-44 h-44 relative flex items-center justify-center">
+              {/* Corner brackets */}
+              <span className="absolute top-0 left-0 w-9 h-9 border-t-[3.5px] border-l-[3.5px] border-[#7B00FF] rounded-tl-[10px]" />
+              <span className="absolute top-0 right-0 w-9 h-9 border-t-[3.5px] border-r-[3.5px] border-[#7B00FF] rounded-tr-[10px]" />
+              <span className="absolute bottom-0 left-0 w-9 h-9 border-b-[3.5px] border-l-[3.5px] border-[#7B00FF] rounded-bl-[10px]" />
+              <span className="absolute bottom-0 right-0 w-9 h-9 border-b-[3.5px] border-r-[3.5px] border-[#7B00FF] rounded-br-[10px]" />
+
+              {/* Inner QR icon */}
+              <div className="flex flex-col items-center justify-center gap-1.5">
+                <div className="flex gap-1.5">
+                  <div className="w-11 h-11 rounded-lg border-[3px] border-[#7B00FF] flex items-center justify-center">
+                    <div className="w-4 h-4 bg-[#7B00FF] rounded-sm" />
+                  </div>
+                  <div className="w-11 h-11 rounded-lg border-[3px] border-[#7B00FF] flex items-center justify-center">
+                    <div className="grid grid-cols-2 gap-0.5">
+                      <div className="w-2 h-2 bg-[#7B00FF] rounded-[2px]" />
+                      <div className="w-2 h-2 bg-[#7B00FF] rounded-[2px]" />
+                      <div className="w-2 h-2 bg-[#7B00FF] rounded-[2px]" />
+                      <div className="w-2 h-2 bg-transparent rounded-[2px]" />
+                    </div>
+                  </div>
                 </div>
-                <div className="text-sm font-semibold text-gray-500">Список пуст</div>
-                <div className="text-xs text-gray-400 mt-1">Отсканируйте штрихкод заказа</div>
+                <div className="flex gap-1.5">
+                  <div className="w-11 h-11 rounded-lg border-[3px] border-[#7B00FF] flex items-center justify-center">
+                    <div className="w-4 h-1.5 bg-[#7B00FF] rounded-sm" />
+                  </div>
+                  <div className="w-11 h-11 rounded-lg flex items-center justify-center">
+                    <Icon name="User" size={22} className="text-[#7B00FF]" />
+                  </div>
+                </div>
               </div>
-            ) : (
-              currentOrders.map((order, i) => (
-                <OrderCard key={order.id} order={order} tab={tab} highlighted={scannedId === order.id} delay={i * 60} />
-              ))
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          </div>
+
+          {/* Hint text */}
+          <div className="text-center mb-8">
+            <p className="text-[19px] font-bold text-gray-900 leading-snug whitespace-pre-line">
+              {SCAN_HINTS[tab]}
+            </p>
+          </div>
+
+          {/* Hidden scan input */}
+          <input
+            ref={inputRef}
+            value={scanValue}
+            onChange={e => setScanValue(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleScan()}
+            className="opacity-0 absolute w-0 h-0"
+            autoFocus
+          />
+        </div>
+      )}
+
+      {/* Bottom action area */}
+      {tab !== "more" && (
+        <div className="px-4 pb-4 pt-2">
+          <div className="flex gap-3">
+            {/* Dots menu button */}
+            <button
+              onClick={() => setShowList(true)}
+              className="w-14 h-14 rounded-2xl bg-white border border-gray-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform relative"
+            >
+              <Icon name="MoreVertical" size={20} className="text-gray-500" />
+              {pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#7B00FF] text-white text-[10px] font-bold flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+
+            {/* Scan QR button */}
+            <button
+              onClick={() => { playBeep("scan"); inputRef.current?.focus(); }}
+              className="flex-1 h-14 rounded-2xl bg-[#7B00FF] text-white font-bold text-[16px] flex items-center justify-center gap-2.5 shadow-lg shadow-purple-200 active:scale-95 transition-transform"
+            >
+              <Icon name="ScanLine" size={20} />
+              Сканировать QR
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Nav */}
-      <div className="bg-white border-t border-gray-100">
-        <div className="flex pb-2">
+      <div className="bg-white border-t border-gray-100 pb-5">
+        <div className="flex">
           {(Object.keys(TAB_CONFIG) as Tab[]).map((t) => {
             const c = TAB_CONFIG[t];
             const isActive = tab === t;
+            const cnt = t !== "more" ? orders[t].filter(o => o.status === "pending").length : 0;
             return (
               <button
                 key={t}
                 onClick={() => handleTabChange(t)}
-                className="flex-1 flex flex-col items-center pt-2 gap-0.5 transition-all duration-150 active:scale-95"
+                className="flex-1 flex flex-col items-center pt-3 pb-1 gap-1 transition-all duration-150 active:scale-95 relative"
               >
-                <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 ${isActive ? "scale-105" : ""}`}
-                  style={{ background: isActive ? c.bg : "transparent" }}
-                >
-                  <Icon name={c.icon} size={20} style={{ color: isActive ? c.color : "#BDBDBD" }} />
+                <div className="relative">
+                  <Icon
+                    name={c.icon}
+                    size={22}
+                    style={{ color: isActive ? "#7B00FF" : "#BDBDBD" }}
+                    strokeWidth={isActive ? 2.5 : 1.8}
+                  />
+                  {cnt > 0 && (
+                    <span className="absolute -top-1.5 -right-2 w-4 h-4 rounded-full bg-[#7B00FF] text-white text-[9px] font-bold flex items-center justify-center">
+                      {cnt}
+                    </span>
+                  )}
                 </div>
-                <span className="text-[10px] font-semibold" style={{ color: isActive ? c.color : "#BDBDBD" }}>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ color: isActive ? "#7B00FF" : "#BDBDBD" }}
+                >
                   {c.label}
                 </span>
+                {isActive && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-[#7B00FF]" />
+                )}
               </button>
             );
           })}
@@ -256,7 +309,7 @@ export default function Index() {
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl z-50 animate-slide-up flex items-center gap-2 whitespace-nowrap ${
+          className={`fixed bottom-28 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl z-50 animate-slide-up flex items-center gap-2 whitespace-nowrap ${
             toast.type === "success" ? "bg-[#00C853]" : "bg-[#F44336]"
           }`}
         >
@@ -268,36 +321,114 @@ export default function Index() {
   );
 }
 
-function OrderCard({ order, tab, highlighted, delay }: {
-  order: Order; tab: Tab; highlighted: boolean; delay: number;
+function ListScreen({ tab, orders, scannedId, onBack, onTabChange }: {
+  tab: Tab;
+  orders: Order[];
+  scannedId: string | null;
+  onBack: () => void;
+  onTabChange: (t: Tab) => void;
 }) {
   const cfg = TAB_CONFIG[tab];
-  const isDone = order.status === "done";
+  const done = orders.filter(o => o.status === "done").length;
+  const total = orders.length;
 
   return (
-    <div
-      className={`bg-white rounded-2xl p-4 card-shadow transition-all duration-300 animate-fade-in ${
-        highlighted ? "ring-2 ring-[#7B00FF] scale-[1.02]" : ""
-      } ${isDone ? "opacity-55" : ""}`}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-          style={{ background: isDone ? "#F5F5F5" : cfg.bg }}
+    <div className="flex flex-col h-screen bg-[#F5F0FF] max-w-md mx-auto overflow-hidden select-none">
+      <div className="h-10" />
+
+      {/* Header */}
+      <div className="flex items-center px-4 pb-3 gap-3">
+        <button
+          onClick={onBack}
+          className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-sm active:scale-95 transition-transform"
         >
-          <Icon name={cfg.icon} size={20} style={{ color: isDone ? "#BDBDBD" : cfg.color }} />
+          <Icon name="ChevronLeft" size={20} className="text-gray-700" />
+        </button>
+        <div className="flex-1">
+          <div className="text-[17px] font-bold text-gray-900">{TAB_TITLES[tab]}</div>
+          <div className="text-[12px] text-gray-500">Выполнено {done} из {total}</div>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-gray-900">{order.barcode}</span>
-            {isDone && (
-              <span className="text-[10px] font-bold text-[#00C853] bg-green-50 px-2 py-0.5 rounded-full">✓ Готово</span>
-            )}
+      </div>
+
+      {/* Progress bar */}
+      <div className="mx-4 mb-3 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-[#7B00FF] rounded-full transition-all duration-500"
+          style={{ width: total > 0 ? `${(done / total) * 100}%` : "0%" }}
+        />
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2.5">
+        {orders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 animate-fade-in">
+            <div className="w-16 h-16 rounded-3xl bg-white flex items-center justify-center shadow-sm">
+              <Icon name={cfg.icon} size={28} className="text-[#7B00FF]" />
+            </div>
+            <p className="text-sm font-semibold text-gray-400">Список пуст</p>
           </div>
-          <div className="text-xs text-gray-500 mt-0.5">{order.customer} · {order.items} {order.items === 1 ? "товар" : "товара"}</div>
+        ) : (
+          orders.map((order, i) => {
+            const isDone = order.status === "done";
+            const isHighlighted = scannedId === order.id;
+            return (
+              <div
+                key={order.id}
+                className={`bg-white rounded-2xl px-4 py-3.5 transition-all duration-300 animate-fade-in ${
+                  isHighlighted ? "ring-2 ring-[#7B00FF] scale-[1.02]" : ""
+                } ${isDone ? "opacity-50" : ""}`}
+                style={{ animationDelay: `${i * 50}ms`, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      isDone ? "bg-gray-100" : "bg-[#F0E6FF]"
+                    }`}
+                  >
+                    <Icon name={cfg.icon} size={18} style={{ color: isDone ? "#BDBDBD" : "#7B00FF" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-bold text-gray-900">{order.barcode}</span>
+                      {isDone && (
+                        <span className="text-[10px] font-bold text-[#00C853] bg-green-50 px-2 py-0.5 rounded-full">
+                          ✓ Готово
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[12px] text-gray-500 mt-0.5">
+                      {order.customer} · {order.items} {order.items === 1 ? "товар" : "товара"}
+                    </div>
+                  </div>
+                  <span className="text-[12px] text-gray-400">{order.time}</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Bottom Nav */}
+      <div className="bg-white border-t border-gray-100 pb-5">
+        <div className="flex">
+          {(Object.keys(TAB_CONFIG) as Tab[]).map((t) => {
+            const c = TAB_CONFIG[t];
+            const isActive = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => onTabChange(t)}
+                className="flex-1 flex flex-col items-center pt-3 pb-1 gap-1 active:scale-95 transition-all duration-150 relative"
+              >
+                <Icon name={c.icon} size={22} style={{ color: isActive ? "#7B00FF" : "#BDBDBD" }} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span className="text-[10px] font-semibold" style={{ color: isActive ? "#7B00FF" : "#BDBDBD" }}>
+                  {c.label}
+                </span>
+                {isActive && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-[#7B00FF]" />}
+              </button>
+            );
+          })}
         </div>
-        <div className="text-xs text-gray-400 flex-shrink-0">{order.time}</div>
       </div>
     </div>
   );
@@ -305,27 +436,26 @@ function OrderCard({ order, tab, highlighted, delay }: {
 
 function MoreScreen() {
   const items = [
-    { icon: "BarChart3",   label: "Статистика",   desc: "Отчёты за день/неделю", color: "#7B00FF", bg: "#F0E6FF" },
-    { icon: "Package",     label: "Склад",         desc: "Остатки на складе",    color: "#2196F3", bg: "#E3F2FD" },
-    { icon: "Users",       label: "Сотрудники",    desc: "Управление доступом",  color: "#FF6D00", bg: "#FFF3E6" },
-    { icon: "Settings",    label: "Настройки",     desc: "Параметры точки",      color: "#607D8B", bg: "#ECEFF1" },
-    { icon: "HelpCircle",  label: "Поддержка",     desc: "Чат с WB",             color: "#00C853", bg: "#E8F9EE" },
-    { icon: "LogOut",      label: "Выйти",         desc: "Смена пользователя",   color: "#F44336", bg: "#FFEBEE" },
+    { icon: "BarChart3",  label: "Статистика",  desc: "Отчёты за день/неделю", color: "#7B00FF", bg: "#F0E6FF" },
+    { icon: "Package",    label: "Склад",        desc: "Остатки на складе",     color: "#2196F3", bg: "#E3F2FD" },
+    { icon: "Users",      label: "Сотрудники",   desc: "Управление доступом",   color: "#FF6D00", bg: "#FFF3E6" },
+    { icon: "Settings",   label: "Настройки",    desc: "Параметры точки",       color: "#607D8B", bg: "#ECEFF1" },
+    { icon: "HelpCircle", label: "Поддержка",    desc: "Чат с WB",              color: "#00C853", bg: "#E8F9EE" },
+    { icon: "LogOut",     label: "Выйти",        desc: "Смена пользователя",    color: "#F44336", bg: "#FFEBEE" },
   ];
-
   return (
     <div className="grid grid-cols-2 gap-3 animate-fade-in">
       {items.map((item, i) => (
         <button
           key={i}
-          className="bg-white rounded-2xl p-4 card-shadow text-left transition-all duration-150 active:scale-95"
-          style={{ animationDelay: `${i * 50}ms` }}
+          className="bg-white rounded-2xl p-4 text-left active:scale-95 transition-transform"
+          style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)", animationDelay: `${i * 50}ms` }}
         >
           <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3" style={{ background: item.bg }}>
             <Icon name={item.icon} size={22} style={{ color: item.color }} />
           </div>
-          <div className="text-sm font-bold text-gray-900">{item.label}</div>
-          <div className="text-xs text-gray-400 mt-0.5">{item.desc}</div>
+          <div className="text-[14px] font-bold text-gray-900">{item.label}</div>
+          <div className="text-[12px] text-gray-400 mt-0.5">{item.desc}</div>
         </button>
       ))}
     </div>

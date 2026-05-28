@@ -170,6 +170,24 @@
   font-weight: 600;
 }
 
+@keyframes scanner-line {
+  0% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(130px);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+}
+.animate-scanner {
+  animation: scanner-line 2.4s ease-in-out infinite;
+}
+
 /* Убираем скролл-бар */
 ::-webkit-scrollbar {
   width: 0;
