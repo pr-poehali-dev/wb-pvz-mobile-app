@@ -57,20 +57,45 @@ export function setCloudMode(val: boolean) {
 const cloudCache: Record<string, string> = {};
 
 export async function fetchCloudSounds(): Promise<{ key: string; name: string; url: string }[]> {
-  const res = await fetch(`${API_URL}/`);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/`);
+  } catch {
+    throw new Error("Нет связи с сервером. Проверьте интернет");
+  }
+  if (!res.ok) throw new Error(`Ошибка загрузки списка (${res.status})`);
   const data = await res.json();
   const sounds: { key: string; name: string; url: string }[] = data.sounds ?? [];
   sounds.forEach(s => { cloudCache[s.key] = s.url; });
   return sounds;
 }
 
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 МБ — с запасом под base64 (+33%)
+
 export async function uploadCloudSound(key: string, file: File): Promise<string> {
+  // Проверяем размер ДО отправки — большой файл рвёт соединение (Failed to fetch)
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    throw new Error(`Файл ${mb} МБ — слишком большой. Максимум 4 МБ`);
+  }
+
   const dataUrl = await fileToDataUrl(file);
-  const res = await fetch(`${API_URL}/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key, name: file.name, data: dataUrl }),
-  });
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, name: file.name, data: dataUrl }),
+    });
+  } catch {
+    throw new Error("Нет связи с сервером. Проверьте интернет и попробуйте снова");
+  }
+
+  if (!res.ok) {
+    throw new Error(`Ошибка загрузки (${res.status}). Попробуйте файл меньшего размера`);
+  }
+
   const data = await res.json();
   cloudCache[key] = data.url;
   return data.url;
