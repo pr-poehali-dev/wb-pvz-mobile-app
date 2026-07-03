@@ -61,8 +61,9 @@ export async function fetchCloudSounds(): Promise<{ key: string; name: string; u
   try {
     res = await fetch(`${API_URL}/`);
   } catch {
-    throw new Error("Нет связи с сервером. Проверьте интернет");
+    throw new Error("Сервер недоступен. Возможно исчерпан лимит облака");
   }
+  if (res.status === 402) throw new Error("Облако недоступно: исчерпан лимит вызовов");
   if (!res.ok) throw new Error(`Ошибка загрузки списка (${res.status})`);
   const data = await res.json();
   const sounds: { key: string; name: string; url: string }[] = data.sounds ?? [];
@@ -89,9 +90,12 @@ export async function uploadCloudSound(key: string, file: File): Promise<string>
       body: JSON.stringify({ key, name: file.name, data: dataUrl }),
     });
   } catch {
-    throw new Error("Нет связи с сервером. Проверьте интернет и попробуйте снова");
+    throw new Error("Сервер недоступен. Возможно исчерпан лимит облака — попробуйте локальный режим");
   }
 
+  if (res.status === 402) {
+    throw new Error("Облако недоступно: исчерпан лимит. Переключитесь на локальное хранение");
+  }
   if (!res.ok) {
     throw new Error(`Ошибка загрузки (${res.status}). Попробуйте файл меньшего размера`);
   }
