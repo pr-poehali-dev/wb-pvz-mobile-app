@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import CloudToggle from "@/components/sound/CloudToggle";
 import {
-  SOUND_KEYS, SOUND_META, SoundKey,
+  SOUND_KEYS, SOUND_KEYS_P2, getSoundMeta, SoundKey,
   saveSound, removeSound, getSoundName, hasSound, getSoundDataUrl,
   CELL_COUNT, hasCellSound,
   QTY_COUNT, hasQtySound,
   isCloudMode, setCloudMode,
   fetchCloudSounds, uploadCloudSound, deleteCloudSound,
+  SoundProfile, PROFILE_META, getProfile, setProfile,
 } from "@/lib/soundStore";
 
 interface Props {
@@ -18,7 +19,10 @@ interface Props {
 
 export default function MainSoundsScreen({ onBack, onCells, onQty }: Props) {
   const [cloud, setCloud] = useState(isCloudMode);
+  const [profile, setProfileState] = useState<SoundProfile>(getProfile);
   const [syncing, setSyncing] = useState(false);
+  const soundMeta = getSoundMeta(profile);
+  const visibleKeys = profile === 2 ? SOUND_KEYS_P2 : SOUND_KEYS;
   const [localStatuses, setLocalStatuses] = useState<Record<SoundKey, boolean>>(
     () => Object.fromEntries(SOUND_KEYS.map(k => [k, hasSound(k)])) as Record<SoundKey, boolean>
   );
@@ -54,6 +58,18 @@ export default function MainSoundsScreen({ onBack, onCells, onQty }: Props) {
     setCloudMode(val);
     setCloud(val);
     if (val) await loadCloud();
+  };
+
+  const refreshAllLocal = useCallback(() => {
+    setLocalStatuses(Object.fromEntries(SOUND_KEYS.map(k => [k, hasSound(k)])) as Record<SoundKey, boolean>);
+    setLocalNames(Object.fromEntries(SOUND_KEYS.map(k => [k, getSoundName(k)])) as Record<SoundKey, string | null>);
+  }, []);
+
+  const handleSwitchProfile = async (p: SoundProfile) => {
+    setProfile(p);
+    setProfileState(p);
+    refreshAllLocal();
+    if (cloud) await loadCloud();
   };
 
   const refreshLocal = (key: SoundKey) => {
@@ -127,9 +143,22 @@ export default function MainSoundsScreen({ onBack, onCells, onQty }: Props) {
         </div>
       </div>
 
+      {/* Переключатель профилей */}
+      <div className="mx-4 mb-3 bg-white rounded-2xl p-1.5 flex gap-1.5" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
+        {([1, 2] as SoundProfile[]).map(p => (
+          <button
+            key={p}
+            onClick={() => handleSwitchProfile(p)}
+            className={`flex-1 h-10 rounded-xl text-[13px] font-bold transition-all active:scale-95 ${profile === p ? "bg-[#7B00FF] text-white shadow-md shadow-purple-200" : "text-gray-500"}`}
+          >
+            {PROFILE_META[p].label}
+          </button>
+        ))}
+      </div>
+
       {/* Flow */}
       <div className="mx-4 mb-3 bg-white rounded-2xl p-4" style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Цепочка воспроизведения</div>
+        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Цепочка воспроизведения · {PROFILE_META[profile].label}</div>
         <div className="flex items-center gap-1 flex-wrap text-[11px] font-semibold">
           <span className="text-[9px] text-gray-400 font-bold uppercase">Открытие:</span>
           <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">Ячейка №</span>
@@ -138,17 +167,27 @@ export default function MainSoundsScreen({ onBack, onCells, onQty }: Props) {
           <Icon name="ArrowRight" size={11} className="text-gray-300" />
           <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">кол-во</span>
           <Icon name="ArrowRight" size={11} className="text-gray-300" />
-          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">payment?</span>
+          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">{profile === 2 ? "ВБ кошелёк" : "payment?"}</span>
         </div>
         <div className="flex items-center gap-1 flex-wrap text-[11px] font-semibold mt-1.5">
           <span className="text-[9px] text-gray-400 font-bold uppercase">Выбрать все:</span>
-          <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">success × N</span>
-          <Icon name="ArrowRight" size={11} className="text-gray-300" />
-          <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">check_goods</span>
+          {profile === 2 ? (
+            <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">товар под камерой</span>
+          ) : (
+            <>
+              <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg">success × N</span>
+              <Icon name="ArrowRight" size={11} className="text-gray-300" />
+              <span className="bg-[#F0E6FF] text-[#7B00FF] px-2 py-1 rounded-lg">check_goods</span>
+            </>
+          )}
           <span className="text-[9px] text-gray-400 font-bold uppercase ml-1">Выдать:</span>
-          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg">thanks</span>
+          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg">{profile === 2 ? "оцените ПВЗ" : "thanks"}</span>
         </div>
-        <div className="text-[10px] text-gray-400 mt-1.5">Кол-во товаров = озвучка ячейки с тем же номером (напр. 2 товара → файл ячейки 2)</div>
+        <div className="text-[10px] text-gray-400 mt-1.5">
+          {profile === 2
+            ? "Вариант 2: после ячейки — «товары со скидкой, проверьте ВБ кошелёк»"
+            : "Кол-во товаров = озвучка ячейки с тем же номером (напр. 2 товара → файл ячейки 2)"}
+        </div>
       </div>
 
       <CloudToggle cloud={cloud} onChange={handleToggleCloud} syncing={syncing} />
@@ -182,8 +221,8 @@ export default function MainSoundsScreen({ onBack, onCells, onQty }: Props) {
           <Icon name="ChevronRight" size={18} className="text-gray-400" />
         </button>
 
-        {SOUND_KEYS.map((key, i) => {
-          const meta = SOUND_META[key];
+        {visibleKeys.map((key, i) => {
+          const meta = soundMeta[key];
           const uploaded = cloud ? !!cloudMap[key] : localStatuses[key];
           const name = cloud ? cloudMap[key]?.name : localNames[key];
           const isLast = key === "thanks_for_order_rate_pickpoint";

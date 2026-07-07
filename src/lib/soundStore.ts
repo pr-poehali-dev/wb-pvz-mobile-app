@@ -33,7 +33,37 @@ export const SOUND_META: Record<SoundKey, { label: string; desc: string }> = {
   },
 };
 
+// Описания фраз для Варианта 2 (другой сценарий)
+export const SOUND_META_P2: Record<SoundKey, { label: string; desc: string }> = {
+  goods: {
+    label: "goods",
+    desc: "Слово перед количеством товаров: «goods — [N]»",
+  },
+  payment_on_delivery: {
+    label: "товары со скидкой — проверьте ВБ кошелёк",
+    desc: "После номера ячейки — «Товары со скидкой, проверьте ВБ кошелёк»",
+  },
+  success_sound: {
+    label: "проверьте товар под камерой",
+    desc: "После нажатия «Выбрать все» — «Проверьте товар под камерой»",
+  },
+  check_goods_before_fitting: {
+    label: "(не используется во 2 варианте)",
+    desc: "В этом варианте не воспроизводится",
+  },
+  thanks_for_order_rate_pickpoint: {
+    label: "оцените наш пункт выдачи",
+    desc: "После нажатия «Выдать» — «Пожалуйста, оцените наш пункт выдачи в приложении»",
+  },
+};
+
+export function getSoundMeta(profile: 1 | 2 = 1) {
+  return profile === 2 ? SOUND_META_P2 : SOUND_META;
+}
+
 export const SOUND_KEYS = Object.keys(SOUND_META) as SoundKey[];
+// Ключи, показываемые для Варианта 2 (без check_goods_before_fitting)
+export const SOUND_KEYS_P2 = ["payment_on_delivery", "success_sound", "thanks_for_order_rate_pickpoint", "goods"] as SoundKey[];
 export const CELL_COUNT = 200;
 
 // ── API URL ────────────────────────────────────────────────────────────────
@@ -52,6 +82,31 @@ export function setCloudMode(val: boolean) {
   localStorage.setItem(CLOUD_MODE_KEY, val ? "1" : "0");
 }
 
+// ── Профили озвучки (Вариант 1 / Вариант 2) ────────────────────────────────
+// Профиль 1 — без префикса (совместимость со старыми файлами).
+// Профиль 2 — все ключи с префиксом "p2_".
+
+export type SoundProfile = 1 | 2;
+const PROFILE_KEY = "wb_pvz_sound_profile";
+
+export const PROFILE_META: Record<SoundProfile, { label: string; short: string }> = {
+  1: { label: "Вариант 1", short: "В1" },
+  2: { label: "Вариант 2", short: "В2" },
+};
+
+export function getProfile(): SoundProfile {
+  return localStorage.getItem(PROFILE_KEY) === "2" ? 2 : 1;
+}
+
+export function setProfile(p: SoundProfile) {
+  localStorage.setItem(PROFILE_KEY, String(p));
+}
+
+// Добавляет префикс профиля к любому ключу звука
+function pfx(key: string): string {
+  return getProfile() === 2 ? `p2_${key}` : key;
+}
+
 // ── Cloud cache (URL по key) ───────────────────────────────────────────────
 
 const cloudCache: Record<string, string> = {};
@@ -66,9 +121,22 @@ export async function fetchCloudSounds(): Promise<{ key: string; name: string; u
   if (res.status === 402) throw new Error("Облако недоступно: исчерпан лимит вызовов");
   if (!res.ok) throw new Error(`Ошибка загрузки списка (${res.status})`);
   const data = await res.json();
-  const sounds: { key: string; name: string; url: string }[] = data.sounds ?? [];
-  sounds.forEach(s => { cloudCache[s.key] = s.url; });
-  return sounds;
+  const all: { key: string; name: string; url: string }[] = data.sounds ?? [];
+  // Кэшируем все ключи как есть (с префиксами) — для воспроизведения через pfx()
+  all.forEach(s => { cloudCache[s.key] = s.url; });
+
+  // Возвращаем только звуки активного профиля, срезая префикс
+  const profile = getProfile();
+  const result: { key: string; name: string; url: string }[] = [];
+  for (const s of all) {
+    const isP2 = s.key.startsWith("p2_");
+    if (profile === 2 && isP2) {
+      result.push({ ...s, key: s.key.slice(3) });
+    } else if (profile === 1 && !isP2) {
+      result.push(s);
+    }
+  }
+  return result;
 }
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 МБ — с запасом под base64 (+33%)
@@ -81,13 +149,14 @@ export async function uploadCloudSound(key: string, file: File): Promise<string>
   }
 
   const dataUrl = await fileToDataUrl(file);
+  const storeKey = pfx(key);
 
   let res: Response;
   try {
     res = await fetch(`${API_URL}/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, name: file.name, data: dataUrl }),
+      body: JSON.stringify({ key: storeKey, name: file.name, data: dataUrl }),
     });
   } catch {
     throw new Error("Сервер недоступен. Возможно исчерпан лимит облака — попробуйте локальный режим");
@@ -101,23 +170,24 @@ export async function uploadCloudSound(key: string, file: File): Promise<string>
   }
 
   const data = await res.json();
-  cloudCache[key] = data.url;
+  cloudCache[storeKey] = data.url;
   return data.url;
 }
 
 export async function deleteCloudSound(key: string): Promise<void> {
+  const storeKey = pfx(key);
   await fetch(`${API_URL}/`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key }),
+    body: JSON.stringify({ key: storeKey }),
   });
-  delete cloudCache[key];
+  delete cloudCache[storeKey];
 }
 
 // ── localStorage ───────────────────────────────────────────────────────────
 
 const LS_PREFIX = "wb_pvz_sound_";
-function lsKey(key: string) { return LS_PREFIX + key; }
+function lsKey(key: string) { return LS_PREFIX + pfx(key); }
 
 export function saveSoundByKey(key: string, file: File): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -240,7 +310,7 @@ async function playSoundByKey(key: string) {
   // Затем облако — один общий fetch, без гонки
   if (isCloudMode()) {
     await ensureCloudCache();
-    const url = cloudCache[key];
+    const url = cloudCache[pfx(key)];
     if (url) await playUrl(url);
   }
 }
@@ -269,6 +339,7 @@ export async function playIssueSequence(
   isCancelled?: () => boolean
 ) {
   const ok = () => !isCancelled?.();
+  const profile = getProfile();
 
   // Предзагружаем облачный кэш заранее — до начала цепочки
   if (isCloudMode()) await ensureCloudCache();
@@ -286,7 +357,9 @@ export async function playIssueSequence(
   await wait(200);
 
   if (!ok()) return;
-  if (paymentOnDelivery) {
+  // Вариант 2: всегда «Товары со скидкой, проверьте ВБ кошелёк».
+  // Вариант 1: только для заказов с оплатой при получении.
+  if (profile === 2 || paymentOnDelivery) {
     await playSound("payment_on_delivery");
     await wait(200);
   }
@@ -297,6 +370,11 @@ export async function playIssueSequence(
  * success_sound × N → check_goods_before_fitting
  */
 export async function playSelectAll(itemCount: number) {
+  // Вариант 2: один раз «Проверьте товар под камерой»
+  if (getProfile() === 2) {
+    await playSound("success_sound");
+    return;
+  }
   for (let i = 0; i < itemCount; i++) {
     await playSound("success_sound");
     await wait(150);
