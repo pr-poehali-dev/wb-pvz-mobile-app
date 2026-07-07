@@ -50,7 +50,10 @@ export default function OrderScreen({
             </div>
             <div className="text-[14px] text-gray-500 mt-1">{order.phone}</div>
           </div>
-          <button className="w-10 h-10 rounded-xl bg-[#F0E6FF] flex items-center justify-center mt-1">
+          <button
+            onClick={() => playIssueSequence(order.cell, order.items, order.paymentOnDelivery ?? false)}
+            className="w-10 h-10 rounded-xl bg-[#F0E6FF] flex items-center justify-center mt-1 active:scale-90 transition-transform"
+          >
             <Icon name="Volume2" size={20} className="text-[#7B00FF]" />
           </button>
         </div>
