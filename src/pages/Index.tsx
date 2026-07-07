@@ -24,7 +24,6 @@ export default function Index() {
   }, []);
 
   const handleScanClick = () => {
-    playBeep("scan");
     const pending = orders[tab].filter(o => o.status === "pending");
     if (pending.length > 0) {
       // Берём следующий pending заказ, но переназначаем ячейку и кол-во случайно
@@ -47,7 +46,6 @@ export default function Index() {
 
   const handleIssue = () => {
     if (!activeOrder) return;
-    playBeep("success");
     playIssueComplete();
     setOrders(prev => ({
       ...prev,
